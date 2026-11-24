@@ -10,7 +10,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="loading">Generating world…</div>
+<div id="loading" class="hidden">Generating world…</div>
 <div id="hud">
   <div id="crosshair"></div>
   <div id="clock">☀ 06:00</div>
@@ -22,7 +22,7 @@
 <div id="menu" class="hidden">
   <div class="panel">
     <h1>BLOCK<span>HAVEN</span></h1>
-    <p class="tag">An endless voxel sandbox · seed <b id="seed">—</b></p>
+    <p class="tag"><b id="worldname">Blockhaven</b> · <span id="gamemode">Survival</span> · seed <b id="seed">—</b></p>
     <button id="btn-play" class="primary">Play</button>
     <div class="row">
       <button id="btn-save">Save World</button>
@@ -34,9 +34,70 @@
       <div><kbd>Space</kbd> jump / swim</div><div><kbd>Shift</kbd> sprint</div>
       <div><kbd>Left click</kbd> break</div><div><kbd>Right click</kbd> place</div>
       <div><kbd>1–9</kbd> / <kbd>Scroll</kbd> pick block</div><div><kbd>Middle click</kbd> copy block</div>
-      <div><kbd>F</kbd> fly (<kbd>Space</kbd>/<kbd>C</kbd>)</div><div><kbd>K</kbd> save · <kbd>F3</kbd> stats</div>
+      <div><kbd>F</kbd> fly in Creative (<kbd>Space</kbd>/<kbd>C</kbd>)</div><div><kbd>K</kbd> save · <kbd>F3</kbd> stats</div>
       <div><kbd>Esc</kbd> pause</div>
     </div>
+    <a class="back" href="../../">← Back to Jaxcade</a>
+  </div>
+</div>
+<div id="create" class="hidden">
+  <div class="panel create-panel">
+    <h1>BLOCK<span>HAVEN</span></h1>
+    <p class="tag">Create a new world</p>
+    <form id="create-form">
+      <label>World name
+        <input id="opt-name" type="text" maxlength="32" value="New World" autocomplete="off">
+      </label>
+      <label>Seed
+        <div class="seed-row">
+          <input id="opt-seed" type="text" placeholder="Leave blank for random" autocomplete="off" spellcheck="false">
+          <button type="button" id="btn-rand-seed">Random</button>
+        </div>
+      </label>
+      <div class="opt-row">
+        <label>Game mode
+          <select id="opt-mode">
+            <option value="survival">Survival</option>
+            <option value="creative">Creative</option>
+          </select>
+        </label>
+        <label>World type
+          <select id="opt-type">
+            <option value="normal">Normal</option>
+            <option value="flat">Flat</option>
+            <option value="amplified">Amplified</option>
+            <option value="islands">Islands</option>
+          </select>
+        </label>
+      </div>
+      <div class="opt-row">
+        <label>Render distance
+          <select id="opt-render">
+            <option value="3">Short (3 chunks)</option>
+            <option value="5" selected>Normal (5 chunks)</option>
+            <option value="8">Far (8 chunks)</option>
+          </select>
+        </label>
+        <label>Starting time
+          <select id="opt-time">
+            <option value="0">Dawn (06:00)</option>
+            <option value="0.08" selected>Morning (08:00)</option>
+            <option value="0.25">Noon (12:00)</option>
+            <option value="0.5">Sunset (18:00)</option>
+            <option value="0.75">Night (00:00)</option>
+          </select>
+        </label>
+      </div>
+      <label>Tree density <span id="tree-label" class="range-val">Normal</span>
+        <input type="range" id="opt-trees" min="0" max="3" step="1" value="2">
+      </label>
+      <label>Water level <span id="sea-label" class="range-val">24</span>
+        <input type="range" id="opt-sea" min="8" max="40" value="24">
+      </label>
+      <label class="check"><input type="checkbox" id="opt-caves" checked> Generate caves</label>
+      <button type="submit" class="primary" id="btn-create">Create World</button>
+      <button type="button" id="btn-create-cancel" class="hidden">Cancel</button>
+    </form>
     <a class="back" href="../../">← Back to Jaxcade</a>
   </div>
 </div>

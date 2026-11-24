@@ -49,11 +49,19 @@ class Geo {
 }
 
 export class World {
-  constructor(scene, materials, seed) {
+  constructor(scene, materials, seed, opts = {}) {
     this.scene = scene; this.mat = materials;
     this.chunks = new Map();
     this.edits = new Map(); // "x,y,z" -> id
     this.editsByChunk = new Map(); // chunkKey -> Map(localIdx -> id)
+    this.name = (opts.name || 'New World').slice(0, 32);
+    this.type = opts.type || 'normal'; // normal | flat | amplified | islands
+    this.mode = opts.mode || 'survival'; // survival | creative
+    this.sea = opts.sea ?? SEA;
+    this.treeDensity = opts.treeDensity ?? 0.012;
+    this.caves = !!opts.caves;
+    this.renderDist = opts.renderDist ?? 5;
+    this.startTime = opts.startTime ?? 0.08;
     this.setSeed(seed);
   }
   setSeed(seed) {
@@ -67,11 +75,30 @@ export class World {
   }
   fbm(n, x, z, oct) { let a = 1, f = 1, s = 0, t = 0; for (let i = 0; i < oct; i++) { s += n(x * f, z * f) * a; t += a; a *= 0.5; f *= 2; } return s / t; }
   heightAt(x, z) {
+    if (this.type === 'flat') return Math.max(3, Math.min(CH - 12, this.sea + 4));
     const c = this.fbm(this.n1, x / 240, z / 240, 3);
     const hills = this.fbm(this.n2, x / 55, z / 55, 4);
     const ridge = 1 - Math.abs(this.n3(x / 130, z / 130));
-    let h = 26 + c * 22 + hills * 6 + Math.max(0, c) * ridge * ridge * 26;
+    let h;
+    if (this.type === 'amplified') {
+      h = 22 + c * 28 + hills * 10 + Math.max(0, c) * ridge * ridge * 48;
+      h += (this.sea - SEA);
+    } else if (this.type === 'islands') {
+      const land = c + hills * 0.25;
+      if (land < 0.05) h = this.sea - 8 + land * 10;
+      else h = this.sea + 2 + (land - 0.05) * 28 + Math.max(0, c) * ridge * ridge * 18;
+    } else {
+      h = 26 + c * 22 + hills * 6 + Math.max(0, c) * ridge * ridge * 26;
+      h += (this.sea - SEA);
+    }
     return Math.max(3, Math.min(CH - 12, Math.floor(h)));
+  }
+  isCave(x, y, z) {
+    const n = this.n1(x / 18, z / 18);
+    const m = this.n2(x / 14, y / 10);
+    const p = this.n3(z / 14, y / 10);
+    const v = Math.abs(n) * 0.45 + Math.abs(m) * 0.35 + Math.abs(p) * 0.35;
+    return v < 0.22 + (y / CH) * 0.05;
   }
   getChunk(cx, cz) { return this.chunks.get(this.key(cx, cz)); }
   getBlock(x, y, z) {
@@ -87,23 +114,31 @@ export class World {
     const bx = cx * CS, bz = cz * CS;
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
       const wx = bx + x, wz = bz + z; const h = this.heightAt(wx, wz);
-      const beach = h <= SEA + 1, snowy = h >= SNOWLINE;
-      const top = Math.max(h, SEA);
+      const beach = h <= this.sea + 1, snowy = h >= SNOWLINE;
+      const top = Math.max(h, this.sea);
       for (let y = 0; y <= top; y++) {
         let id;
         if (y === 0) id = DEEPSTONE;
         else if (y < h - 3) id = y < 6 && this.hash2(wx, wz, y) < 0.5 ? DEEPSTONE : STONE;
         else if (y < h) id = beach ? SAND : snowy ? STONE : DIRT;
-        else if (y === h) id = beach ? (h < SEA - 4 ? DIRT : SAND) : snowy ? SNOW : GRASS;
+        else if (y === h) id = beach ? (h < this.sea - 4 ? DIRT : SAND) : snowy ? SNOW : GRASS;
         else id = WATER;
         data[idx(x, y, z)] = id;
+      }
+      if (this.caves && h > this.sea) {
+        for (let y = 3; y < h - 2; y++) {
+          if (!this.isCave(wx, y, wz)) continue;
+          const i = idx(x, y, z);
+          const id = data[i];
+          if (id === STONE || id === DEEPSTONE || id === DIRT) data[i] = AIR;
+        }
       }
     }
     // trees (deterministic per world column, so they span chunk borders seamlessly)
     for (let wz = bz - 2; wz < bz + CS + 2; wz++) for (let wx = bx - 2; wx < bx + CS + 2; wx++) {
-      if (this.hash2(wx, wz, 7) > 0.012) continue;
+      if (this.treeDensity <= 0 || this.hash2(wx, wz, 7) > this.treeDensity) continue;
       const forest = this.n2(wx / 90 + 50, wz / 90 + 50); if (forest < -0.15) continue;
-      const h = this.heightAt(wx, wz); if (h <= SEA + 1 || h >= SNOWLINE - 2) continue;
+      const h = this.heightAt(wx, wz); if (h <= this.sea + 1 || h >= SNOWLINE - 2) continue;
       const th = 4 + Math.floor(this.hash2(wx, wz, 9) * 3);
       const put = (x, y, z, id, onlyAir) => {
         const lx = x - bx, lz = z - bz; if (lx < 0 || lz < 0 || lx >= CS || lz >= CS || y >= CH) return;

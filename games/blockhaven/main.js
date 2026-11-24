@@ -4,7 +4,10 @@ import { AIR, WATER, GRASS, SAND, BLOCKS, HOTBAR, isSolid, makeAtlasCanvas, make
 import { World, CS, CH, SEA } from './world.js';
 
 const SAVE_KEY = 'blockhaven.world.v1';
-const RENDER_DIST = 5; // chunks
+const LAST_KEY = 'blockhaven.create.v1';
+const TREE_STEPS = [0, 0.004, 0.012, 0.03];
+const TREE_NAMES = ['None', 'Sparse', 'Normal', 'Dense'];
+let renderDist = 5;
 const DAY_LENGTH = 480; // seconds per full day
 const REACH = 6;
 const $ = (id) => document.getElementById(id);
@@ -18,8 +21,15 @@ renderer.setSize(innerWidth, innerHeight);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.08, 1000);
 camera.rotation.order = 'YXZ';
-const fogFar = RENDER_DIST * CS * 0.95;
+let fogFar = renderDist * CS * 0.95;
 scene.fog = new THREE.Fog(0x8ec9ff, fogFar * 0.45, fogFar);
+function setRenderDist(n) {
+  renderDist = Math.max(2, Math.min(10, n | 0));
+  fogFar = renderDist * CS * 0.95;
+  scene.fog.near = fogFar * 0.45; scene.fog.far = fogFar;
+  camera.far = Math.max(400, renderDist * CS * 3);
+  camera.updateProjectionMatrix();
+}
 
 const atlasCanvas = makeAtlasCanvas();
 const atlas = new THREE.CanvasTexture(atlasCanvas);
@@ -52,27 +62,53 @@ const keys = {};
 let target = null;
 
 function loadSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch { return null; } }
+function worldSettings(w) {
+  return { type: w.type, mode: w.mode, renderDist: w.renderDist, treeDensity: w.treeDensity, sea: w.sea, caves: w.caves, startTime: w.startTime };
+}
+function optsFromSave(saved) {
+  const s = saved && saved.settings ? saved.settings : {};
+  return {
+    name: (saved && saved.name) || s.name || 'New World',
+    type: s.type || 'normal', mode: s.mode || 'survival',
+    renderDist: s.renderDist ?? 5, treeDensity: s.treeDensity ?? 0.012,
+    sea: s.sea ?? SEA, caves: s.caves ?? false, startTime: s.startTime ?? 0.08,
+  };
+}
+function parseSeed(input) {
+  const s = String(input ?? '').trim();
+  if (!s) return (Math.random() * 0xFFFFFFFF) >>> 0;
+  if (/^\d+$/.test(s)) return Number(s) >>> 0;
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
 function save(manual) {
   if (!world || !ready || window.__bhNoSave) return;
-  const data = { v: 1, seed: world.seed, edits: world.editList(), time: timeOfDay, selected, savedAt: Date.now(),
+  const data = { v: 2, name: world.name, seed: world.seed, settings: worldSettings(world),
+    edits: world.editList(), time: timeOfDay, selected, savedAt: Date.now(),
     player: { x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, fly: player.fly } };
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); lastSave = performance.now(); if (manual) toast('World saved ✓'); updateMenu(); }
   catch (e) { toast('Save failed: storage full?'); }
 }
 
-function startWorld(seed, saved) {
+function startWorld(seed, saved, opts) {
+  opts = opts || optsFromSave(saved);
   if (world) world.clearAll();
-  world = new World(scene, materials, seed);
-  if (saved) { world.loadEdits(saved.edits || []); timeOfDay = saved.time ?? 0.08; selectSlot(saved.selected ?? 0); }
-  else { timeOfDay = 0.08; }
+  lastCenter = ''; genQueue = [];
+  world = new World(scene, materials, seed, opts);
+  setRenderDist(world.renderDist);
+  if (saved) { world.loadEdits(saved.edits || []); timeOfDay = saved.time ?? world.startTime; selectSlot(saved.selected ?? 0); }
+  else { timeOfDay = world.startTime ?? 0.08; }
   // generate around spawn synchronously so we can place the player
-  let sx = 0, sz = 0;
+  let sx = 0, sz = 0, best = -1;
   if (saved && saved.player) { sx = Math.floor(saved.player.x); sz = Math.floor(saved.player.z); }
   else {
     // spiral out until we find dry land
     outer: for (let r = 0; r < 400; r += 8) for (let a = 0; a < 8; a++) {
       const x = Math.round(Math.cos(a / 8 * Math.PI * 2) * r), z = Math.round(Math.sin(a / 8 * Math.PI * 2) * r);
-      const h = world.heightAt(x, z); if (h > SEA + 2 && h < 40) { sx = x; sz = z; break outer; }
+      const h = world.heightAt(x, z);
+      if (h > best) { best = h; sx = x; sz = z; }
+      if (h > world.sea + 2 && h < 40) { sx = x; sz = z; break outer; }
     }
   }
   const pcx = Math.floor(sx / CS), pcz = Math.floor(sz / CS);
@@ -89,11 +125,14 @@ function startWorld(seed, saved) {
       if (b === GRASS || b === SAND) { sx += dx; sz += dz; break find; }
     }
     const y = top(sx, sz);
-    player.pos.set(sx + 0.5, y + 1.01, sz + 0.5); player.yaw = 0.6; player.pitch = -0.25; player.fly = false;
+    player.pos.set(sx + 0.5, y + 1.01, sz + 0.5); player.yaw = 0.6; player.pitch = -0.25;
+    player.fly = world.mode === 'creative';
   }
   player.vel.set(0, 0, 0);
   ready = true;
   $('seed').textContent = world.seed;
+  $('worldname').textContent = world.name;
+  $('gamemode').textContent = world.mode === 'creative' ? 'Creative' : 'Survival';
 }
 
 // ---------- chunk streaming ----------
@@ -104,13 +143,13 @@ function streamChunks(budgetMs) {
   const center = pcx + ',' + pcz;
   if (center !== lastCenter) {
     lastCenter = center; genQueue = [];
-    for (let dz = -RENDER_DIST - 1; dz <= RENDER_DIST + 1; dz++) for (let dx = -RENDER_DIST - 1; dx <= RENDER_DIST + 1; dx++) {
-      if (dx * dx + dz * dz > (RENDER_DIST + 1.5) ** 2) continue;
+    for (let dz = -renderDist - 1; dz <= renderDist + 1; dz++) for (let dx = -renderDist - 1; dx <= renderDist + 1; dx++) {
+      if (dx * dx + dz * dz > (renderDist + 1.5) ** 2) continue;
       genQueue.push([pcx + dx, pcz + dz, dx * dx + dz * dz]);
     }
     genQueue.sort((a, b) => b[2] - a[2]); // pop() takes nearest
     for (const c of [...world.chunks.values()]) {
-      const dx = c.cx - pcx, dz = c.cz - pcz; if (dx * dx + dz * dz > (RENDER_DIST + 3) ** 2) world.unload(c);
+      const dx = c.cx - pcx, dz = c.cz - pcz; if (dx * dx + dz * dz > (renderDist + 3) ** 2) world.unload(c);
     }
   }
   while (genQueue.length && performance.now() - t0 < budgetMs) {
@@ -120,7 +159,7 @@ function streamChunks(budgetMs) {
   const dirty = [];
   for (const c of world.chunks.values()) {
     if (!c.dirty) continue; const dx = c.cx - pcx, dz = c.cz - pcz; const d = dx * dx + dz * dz;
-    if (d <= (RENDER_DIST + 0.5) ** 2 && world.neighborsReady(c.cx, c.cz)) dirty.push([d, c]);
+    if (d <= (renderDist + 0.5) ** 2 && world.neighborsReady(c.cx, c.cz)) dirty.push([d, c]);
   }
   dirty.sort((a, b) => a[0] - b[0]);
   for (const [, c] of dirty) { if (performance.now() - t0 > budgetMs * 1.6) break; world.meshChunk(c); }
@@ -227,16 +266,81 @@ let toastT;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
 function updateMenu() {
   const s = loadSave();
-  $('saveinfo').textContent = s ? `Saved world · seed ${s.seed} · ${s.edits.length} edited blocks · ${new Date(s.savedAt).toLocaleString()}` : 'No saved world yet — your world autosaves every 20 seconds.';
+  if (world) {
+    $('seed').textContent = world.seed;
+    $('worldname').textContent = world.name;
+    $('gamemode').textContent = world.mode === 'creative' ? 'Creative' : 'Survival';
+  }
+  $('saveinfo').textContent = s ? `${s.name || 'Saved world'} · seed ${s.seed} · ${(s.edits || []).length} edited blocks · ${new Date(s.savedAt).toLocaleString()}` : 'No saved world yet — your world autosaves every 20 seconds.';
 }
-function showMenu(show) { $('menu').classList.toggle('hidden', !show); $('hud').classList.toggle('dim', show); }
+function showMenu(show) { $('menu').classList.toggle('hidden', !show); $('hud').classList.toggle('dim', show); if (show) $('create').classList.add('hidden'); }
+function treeIndex(density) {
+  let best = 2, d = 1e9;
+  for (let i = 0; i < TREE_STEPS.length; i++) { const x = Math.abs(TREE_STEPS[i] - density); if (x < d) { d = x; best = i; } }
+  return best;
+}
+function fillCreateForm(pref) {
+  const last = pref || (function () { try { return JSON.parse(localStorage.getItem(LAST_KEY) || 'null'); } catch { return null; } })() || {};
+  $('opt-name').value = last.name || 'New World';
+  $('opt-seed').value = last.seedText || '';
+  $('opt-mode').value = last.mode || 'survival';
+  $('opt-type').value = last.type || 'normal';
+  $('opt-render').value = String(last.renderDist ?? 5);
+  const timeVal = String(last.startTime ?? 0.08);
+  const timeEl = $('opt-time');
+  timeEl.value = timeVal;
+  if (timeEl.value !== timeVal) timeEl.value = '0.08';
+  const ti = treeIndex(last.treeDensity ?? 0.012);
+  $('opt-trees').value = String(ti); $('tree-label').textContent = TREE_NAMES[ti];
+  const sea = last.sea ?? 24;
+  $('opt-sea').value = String(sea); $('sea-label').textContent = String(sea);
+  $('opt-caves').checked = last.caves !== false;
+}
+function openCreate(canCancel) {
+  fillCreateForm();
+  $('btn-create-cancel').classList.toggle('hidden', !canCancel);
+  $('menu').classList.add('hidden');
+  $('create').classList.remove('hidden');
+  $('hud').classList.add('dim');
+}
+function rememberCreate(settings, seedText) {
+  try { localStorage.setItem(LAST_KEY, JSON.stringify({ ...settings, seedText: seedText || '' })); } catch {}
+}
 
 function lock() { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); }
 $('btn-play').onclick = () => { lock(); if (params.has('autotest')) { playing = true; showMenu(false); } };
 $('btn-save').onclick = () => save(true);
-$('btn-new').onclick = () => {
-  if (loadSave() && !confirm('Start a new world? Your saved world will be replaced.')) return;
-  localStorage.removeItem(SAVE_KEY); lastCenter = ''; startWorld((Math.random() * 1e9) >>> 0, null); save(false); toast('New world generated');
+$('btn-new').onclick = () => openCreate(true);
+$('btn-create-cancel').onclick = () => { $('create').classList.add('hidden'); if (ready) showMenu(true); };
+$('btn-rand-seed').onclick = () => { $('opt-seed').value = String((Math.random() * 0xFFFFFFFF) >>> 0); };
+$('opt-trees').oninput = () => { $('tree-label').textContent = TREE_NAMES[+$('opt-trees').value]; };
+$('opt-sea').oninput = () => { $('sea-label').textContent = $('opt-sea').value; };
+$('create-form').onsubmit = (e) => {
+  e.preventDefault();
+  if (loadSave() && ready && !confirm('Create this world? Your saved world will be replaced.')) return;
+  const seedText = $('opt-seed').value.trim();
+  const opts = {
+    name: ($('opt-name').value.trim() || 'New World').slice(0, 32),
+    type: $('opt-type').value,
+    mode: $('opt-mode').value,
+    renderDist: +$('opt-render').value,
+    treeDensity: TREE_STEPS[+$('opt-trees').value] ?? 0.012,
+    sea: +$('opt-sea').value,
+    caves: $('opt-caves').checked,
+    startTime: +$('opt-time').value,
+  };
+  rememberCreate(opts, seedText);
+  $('create').classList.add('hidden');
+  $('loading').classList.remove('hidden');
+  $('loading').textContent = 'Generating world…';
+  requestAnimationFrame(() => {
+    startWorld(parseSeed(seedText), null, opts);
+    save(false);
+    $('btn-play').textContent = 'Play';
+    updateMenu(); showMenu(true);
+    $('loading').classList.add('hidden');
+    toast(opts.name + ' created');
+  });
 };
 canvas.addEventListener('click', () => { if (!playing) lock(); });
 document.addEventListener('pointerlockchange', () => {
@@ -263,7 +367,10 @@ function pickBlock() { updateTarget(); if (!target) return; const i = HOTBAR.ind
 document.addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (e.code.startsWith('Digit')) { const n = +e.code.slice(5); if (n >= 1 && n <= 9) selectSlot(n - 1); }
-  if (e.code === 'KeyF' && playing) { player.fly = !player.fly; player.vel.y = 0; toast(player.fly ? 'Flying on (Space up, C down)' : 'Flying off'); }
+  if (e.code === 'KeyF' && playing) {
+    if (world.mode !== 'creative') toast('Flying is available in Creative mode');
+    else { player.fly = !player.fly; player.vel.y = 0; toast(player.fly ? 'Flying on (Space up, C down)' : 'Flying off'); }
+  }
   if (e.code === 'KeyK' && playing) save(true);
   if (e.code === 'F3') { e.preventDefault(); $('debug').classList.toggle('hidden'); }
   if (e.code === 'Space' && playing) e.preventDefault();
@@ -325,10 +432,16 @@ function frame(now) {
 
 // ---------- boot ----------
 const saved = loadSave();
-startWorld(saved ? saved.seed : (params.get('seed') ? +params.get('seed') : (Math.random() * 1e9) >>> 0), saved);
-if (saved) $('btn-play').textContent = 'Continue World';
-updateMenu(); showMenu(true);
-$('loading').classList.add('hidden');
+if (saved || params.has('autotest')) {
+  const seed = saved ? saved.seed : (params.get('seed') ? parseSeed(params.get('seed')) : (Math.random() * 1e9) >>> 0);
+  startWorld(seed, saved);
+  if (saved) $('btn-play').textContent = 'Continue World';
+  updateMenu(); showMenu(true);
+  $('loading').classList.add('hidden');
+} else {
+  openCreate(false);
+  if (params.get('seed')) $('opt-seed').value = params.get('seed');
+}
 requestAnimationFrame(frame);
 
 // hooks for automated tests
@@ -337,4 +450,5 @@ window.__bh = {
   look(yaw, pitch) { player.yaw = yaw; player.pitch = pitch; camera.position.set(player.pos.x, player.pos.y + EYE, player.pos.z); camera.rotation.set(pitch, yaw, 0); camera.updateMatrixWorld(); },
   breakBlock, placeBlock, selectSlot, save, setTime(t) { timeOfDay = t; }, get fps() { return fps; },
   dirtyCount() { let n = 0; for (const c of world.chunks.values()) if (c.dirty) n++; return n; },
+  parseSeed, startWorld, openCreate,
 };

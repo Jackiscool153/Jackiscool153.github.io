@@ -36,3 +36,24 @@ button.primary:hover{background:linear-gradient(180deg,#6fe06a,#46b041)}
 kbd{display:inline-block;font:600 11px ui-monospace,monospace;background:#232a40;border:1px solid #3a4466;border-bottom-width:2px;border-radius:5px;padding:1px 6px}
 .back{display:inline-block;margin-top:16px;color:#9fb6ff;text-decoration:none;font-weight:600}
 .back:hover{text-decoration:underline}
+
+#create{position:fixed;inset:0;display:grid;place-items:center;background:#0b1020;overflow:auto;padding:20px 12px}
+.create-panel{text-align:left;max-height:94vh;overflow:auto}
+.create-panel h1,.create-panel .tag{text-align:center}
+#create-form label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;margin:0 0 12px;text-align:left}
+#create-form input[type=text],#create-form select{
+  font:16px system-ui,sans-serif;color:#fff;background:#1a2034;border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;padding:9px 11px;width:100%
+}
+#create-form input[type=text]:focus,#create-form select:focus{outline:2px solid #5fcf5a;outline-offset:1px}
+.seed-row{display:flex;gap:8px}
+.seed-row input{flex:1}
+.opt-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.range-val{font-weight:700;color:#ffd54a;margin-left:auto}
+#create-form label:has(.range-val){flex-direction:row;flex-wrap:wrap;align-items:center}
+#create-form input[type=range]{width:100%;flex-basis:100%;accent-color:#5fcf5a;margin-top:2px}
+#create-form .check{flex-direction:row;align-items:center;gap:8px;font-size:15px}
+#create-form .check input{width:18px;height:18px;accent-color:#5fcf5a}
+#btn-create{margin-top:6px}
+#btn-create-cancel{width:100%;margin-top:10px}
+@media (max-width:520px){.opt-row{grid-template-columns:1fr}}
