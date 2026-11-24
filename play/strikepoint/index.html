@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STRIKEPOINT · Jaxcade</title>
+<link rel="icon" href="../../img/favicon.svg" type="image/svg+xml">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#07080f;color:#eef0ff;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+.bar{height:52px;display:flex;align-items:center;gap:12px;padding:0 14px;background:#10121f;border-bottom:1px solid rgba(255,255,255,.08)}
+.bar a,.bar button{font:700 14px system-ui,sans-serif;color:#eef0ff;text-decoration:none;background:#1d2036;border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:7px 12px;cursor:pointer}
+.bar a:hover,.bar button:hover{background:#2a2e4d}
+.bar .title{font-weight:900;letter-spacing:.06em;margin-right:auto;color:#ff9f2e}
+.bar .title small{color:#9aa0c3;font-weight:500;letter-spacing:0;margin-left:8px}
+.bar .primary{background:linear-gradient(90deg,#ff9f2e,#ff5f3c);border-color:transparent;color:#111}
+.stage{position:relative;height:calc(100% - 52px)}
+iframe{width:100%;height:100%;border:0;display:block;background:#000}
+#wait{position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:radial-gradient(600px 300px at 50% 40%,rgba(255,159,46,.18),transparent),#07080f;transition:opacity .4s}
+#wait.gone{opacity:0;pointer-events:none}
+#wait h1{font-size:44px;letter-spacing:.12em;font-weight:900}
+#wait p{color:#9aa0c3;margin:10px auto 0;max-width:440px;line-height:1.5}
+.spin{width:46px;height:46px;margin:24px auto 12px;border:4px solid rgba(255,255,255,.12);border-top-color:#ff9f2e;border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+#secs{font:600 14px ui-monospace,monospace;color:#ff9f2e}
+#wait a{color:#ffb866}
+</style>
+</head>
+<body>
+<div class="bar">
+  <a href="../../">← Jaxcade</a>
+  <span class="title">STRIKEPOINT <small>online arena FPS</small></span>
+  <button id="fs" type="button">⛶ Fullscreen</button>
+  <a class="primary" id="newtab" href="https://strikepoint-ykix.onrender.com/" target="_blank" rel="noopener">Open in new tab ↗</a>
+</div>
+<div class="stage">
+  <iframe id="game" title="STRIKEPOINT" src="https://strikepoint-ykix.onrender.com/" allow="fullscreen; pointer-lock; autoplay" allowfullscreen></iframe>
+  <div id="wait">
+    <div>
+      <h1>STRIKEPOINT</h1>
+      <div class="spin"></div>
+      <div id="secs">Connecting…</div>
+      <p>Waking up the game server. If nobody has played for a while this takes up to ~50 seconds, then it's instant.</p>
+      <p>Mouse not locking or controls acting weird? <a href="https://strikepoint-ykix.onrender.com/" target="_blank" rel="noopener">Open it in a new tab</a>.</p>
+    </div>
+  </div>
+</div>
+<script>
+  const frame = document.getElementById('game'), wait = document.getElementById('wait'), secs = document.getElementById('secs');
+  const t0 = Date.now();
+  const tick = setInterval(() => { const s = Math.round((Date.now() - t0) / 1000); secs.textContent = s < 3 ? 'Connecting…' : `Starting server… ${s}s`; }, 500);
+  frame.addEventListener('load', () => { clearInterval(tick); wait.classList.add('gone'); frame.focus(); });
+  document.getElementById('fs').onclick = () => { const st = document.querySelector('.stage'); (st.requestFullscreen || st.webkitRequestFullscreen).call(st); };
+</script>
+</body>
+</html>

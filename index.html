@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jaxcade · Free browser games</title>
+<meta name="description" content="Jaxcade — free, instant-play browser games. No downloads, no sign-up.">
+<meta property="og:title" content="Jaxcade · Free browser games">
+<meta property="og:description" content="Instant-play browser games: STRIKEPOINT and more coming soon.">
+<meta property="og:image" content="img/strikepoint.jpg">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="bg"></div>
+<header class="top">
+  <a class="logo" href="./"><img src="img/favicon.svg" alt=""><span>Jax<b>cade</b></span></a>
+  <label class="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 1 0 3.9 10.6l4.7 4.7 1.4-1.4-4.7-4.7A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg>
+    <input id="q" type="search" placeholder="Search games…" autocomplete="off" aria-label="Search games">
+    <kbd>/</kbd>
+  </label>
+</header>
+<main>
+  <section class="hero">
+    <h1>Play instantly.<br><span>No downloads.</span></h1>
+    <p>Free browser games, hand-built for Jaxcade. Pick one and jump in.</p>
+  </section>
+  <nav class="chips" id="chips" aria-label="Filter by tag"></nav>
+  <section class="grid" id="grid" aria-live="polite"></section>
+  <p class="empty hidden" id="empty">No games match “<span id="emptyq"></span>”. More games coming soon!</p>
+</main>
+<footer>
+  <span>Jaxcade · original games, free to play · <span id="count"></span></span>
+  <span>Best with a keyboard &amp; mouse on desktop.</span>
+</footer>
+<script src="js/games.js"></script>
+<script src="js/hub.js"></script>
+</body>
+</html>
