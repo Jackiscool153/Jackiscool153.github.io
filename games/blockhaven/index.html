@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blockhaven · Jaxcade</title>
+<meta name="description" content="Blockhaven — an original voxel sandbox. Explore endless procedurally generated land, break and build blocks, right in your browser.">
+<link rel="icon" href="../../img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loading">Generating world…</div>
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="clock">☀ 06:00</div>
+  <div id="debug" class="hidden"></div>
+  <div id="blockname"></div>
+  <div id="hotbar"></div>
+  <div id="toast"></div>
+</div>
+<div id="menu" class="hidden">
+  <div class="panel">
+    <h1>BLOCK<span>HAVEN</span></h1>
+    <p class="tag">An endless voxel sandbox · seed <b id="seed">—</b></p>
+    <button id="btn-play" class="primary">Play</button>
+    <div class="row">
+      <button id="btn-save">Save World</button>
+      <button id="btn-new">New World</button>
+    </div>
+    <p id="saveinfo" class="saveinfo"></p>
+    <div class="controls">
+      <div><kbd>W A S D</kbd> move</div><div><kbd>Mouse</kbd> look</div>
+      <div><kbd>Space</kbd> jump / swim</div><div><kbd>Shift</kbd> sprint</div>
+      <div><kbd>Left click</kbd> break</div><div><kbd>Right click</kbd> place</div>
+      <div><kbd>1–9</kbd> / <kbd>Scroll</kbd> pick block</div><div><kbd>Middle click</kbd> copy block</div>
+      <div><kbd>F</kbd> fly (<kbd>Space</kbd>/<kbd>C</kbd>)</div><div><kbd>K</kbd> save · <kbd>F3</kbd> stats</div>
+      <div><kbd>Esc</kbd> pause</div>
+    </div>
+    <a class="back" href="../../">← Back to Jaxcade</a>
+  </div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

@@ -4,6 +4,7 @@ Free, instant-play browser games. Live at **https://jackiscool153.github.io/**
 
 | Game | Where | What |
 |---|---|---|
+| **Blockhaven** | `games/blockhaven/` | Original voxel sandbox (Three.js r160 vendored, procedural textures). Procedural terrain, break/build, day/night, saves to localStorage. |
 | **STRIKEPOINT** | `play/strikepoint/` | Online arena FPS. The page embeds the live Node server at https://strikepoint-ykix.onrender.com (source: [Jackiscool153/strikepoint](https://github.com/Jackiscool153/strikepoint)). |
 
 Everything is plain static HTML/CSS/JS — no build step. GitHub Pages serves the `main` branch root.
@@ -13,6 +14,12 @@ Everything is plain static HTML/CSS/JS — no build step. GitHub Pages serves th
 ```bash
 python3 -m http.server 8000   # then open http://localhost:8000
 ```
+
+## Blockhaven controls
+
+WASD move · mouse look · Space jump/swim · Shift sprint · left click break · right click place ·
+1–9 / scroll pick block · middle click copy block · F fly (Space up / C down) · K save · F3 stats · Esc pause.
+The world autosaves every 20 s and when you pause or leave.
 
 ## Add a game
 
